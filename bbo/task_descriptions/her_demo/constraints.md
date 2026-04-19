@@ -1,7 +1,7 @@
 # Constraints
 
 - All 10 decision variables are continuous and bounded in `[0, 5]`.
-- This demo uses only the HER dataset from the tutorial repository.
-- The evaluator is a learned mock oracle, not a real wet-lab experiment.
-- This task is intended for smoke tests and interface validation, not for reproducing the full paper benchmark.
-- Do not assume access to HEA, OER, BH, molecule, or QED tasks in this benchmark instance.
+- The task must use the staged tutorial dataset; no synthetic fallback data are allowed.
+- The evaluator is a learned oracle, not a real experiment.
+- The required smoke validation uses `random_search` with `--max-evaluations 3`.
+- This task is for benchmark integration and interface checks, not for full paper reproduction.

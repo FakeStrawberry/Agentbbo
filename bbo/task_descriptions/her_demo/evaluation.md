@@ -1,8 +1,8 @@
 # Evaluation
 
-- Dataset: bundled copy of `examples/HER/HER_virtual_data.csv` from `zwyu-ai/BO-Tutorial-for-Sci`
-- Preprocessing: replace `Target` with `Target.max() - Target`
+- Dataset: staged copy of `examples/HER/HER_virtual_data.csv`
+- Preprocessing: convert `Target` into `Target.max() - Target`
 - Oracle: `RandomForestRegressor(n_estimators=100, random_state=<seed>)`
 - Primary objective: `regret` with direction `minimize`
-- Smoke budget: 3 random-search evaluations for the required demo command
-- Standard outputs: append-only JSONL history, run summary JSON, and generic trace/distribution plots
+- Required smoke budget: 3 `random_search` evaluations
+- Standard outputs: append-only `trials.jsonl`, `summary.json`, trace plot, and distribution plot

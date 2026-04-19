@@ -1,7 +1,7 @@
 # Background
 
-`her_demo` models catalyst-composition optimization for photocatalytic hydrogen evolution reaction (HER) in water-splitting experiments.
-The task is based on the HER case study in *Efficient and Principled Scientific Discovery through Bayesian Optimization: A Tutorial* and uses the tutorial repository's virtual HER dataset as a lightweight benchmark proxy.
+`her_demo` models catalyst-composition optimization for photocatalytic hydrogen evolution reaction (HER).
+It uses the tutorial repository file `examples/HER/HER_virtual_data.csv` from *Efficient and Principled Scientific Discovery through Bayesian Optimization: A Tutorial*.
 
-The benchmark objective is not to execute a real chemistry workflow.
-Instead, it exposes a reproducible mock oracle trained on the tutorial data so optimizers can interact with a scientifically motivated search space through the standard ask/evaluate/tell protocol.
+This benchmark is a smoke-level proxy, not a wet-lab workflow.
+The evaluator fits a reproducible random-forest oracle on the staged tutorial dataset and exposes it through the standard benchmark interface.

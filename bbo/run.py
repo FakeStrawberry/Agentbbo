@@ -38,6 +38,7 @@ def run_single_experiment(
     noise_std: float = 0.0,
 ) -> dict[str, Any]:
     task = create_task(task_name, max_evaluations=max_evaluations, seed=seed, noise_std=noise_std)
+    _require_algorithm_support(task, algorithm_name)
     run_dir = _allocate_run_dir(results_root / task_name / algorithm_name / f"seed_{seed}", resume=resume)
     results_jsonl = run_dir / "trials.jsonl"
 
@@ -96,6 +97,9 @@ def run_demo_suite(
     popsize: int | None = 6,
     resume: bool = False,
 ) -> dict[str, Any]:
+    task = create_task(task_name, max_evaluations=random_evaluations, seed=seed)
+    _require_algorithm_support(task, "random_search")
+    _require_algorithm_support(task, "pycma")
     random_summary = run_single_experiment(
         task_name=task_name,
         algorithm_name="random_search",
@@ -117,7 +121,7 @@ def run_demo_suite(
 
     comparison_dir = _allocate_run_dir(results_root / task_name / "suite" / f"seed_{seed}", resume=resume)
     comparison_plot = generate_comparison_plot(
-        task=create_task(task_name, max_evaluations=random_evaluations, seed=seed),
+        task=task,
         histories={
             "random_search": JsonlMetricLogger(Path(random_summary["results_jsonl"])).load_records(),
             "pycma": JsonlMetricLogger(Path(pycma_summary["results_jsonl"])).load_records(),
@@ -192,6 +196,19 @@ def generate_comparison_plot(
         title=f"{task.spec.metadata['display_name']} - optimizer comparison",
     )
     return artifact.path
+
+
+def _require_algorithm_support(task: Task, algorithm_name: str) -> None:
+    algorithm_spec = ALGORITHM_REGISTRY[algorithm_name]
+    if not algorithm_spec.numeric_only:
+        return
+    try:
+        task.spec.search_space.numeric_bounds()
+    except TypeError as exc:
+        raise ValueError(
+            f"Algorithm `{algorithm_name}` only supports fully numeric search spaces; "
+            f"task `{task.spec.name}` includes categorical parameters."
+        ) from exc
 
 
 def _allocate_run_dir(base_dir: Path, *, resume: bool) -> Path:

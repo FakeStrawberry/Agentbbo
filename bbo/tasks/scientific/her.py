@@ -1,4 +1,4 @@
-"""HER scientific benchmark task backed by a random-forest mock oracle."""
+"""HER scientific benchmark task backed by a random-forest oracle."""
 
 from __future__ import annotations
 
@@ -7,9 +7,6 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-
-import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
 
 from ...core import (
     EvaluationResult,
@@ -23,16 +20,16 @@ from ...core import (
     TrialStatus,
     TrialSuggestion,
 )
+from .data_assets import SOURCE_REPO_URL, DatasetAsset, stage_dataset_asset
+from .tabular_oracles import fit_random_forest_regressor, numeric_summary, require_pandas
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 TASK_DESCRIPTION_ROOT = PACKAGE_ROOT / "task_descriptions"
-HER_DATA_ROOT = Path(__file__).resolve().parent / "data"
+HER_DATASET_RELATIVE_PATH = "examples/HER/HER_virtual_data.csv"
 HER_DATASET_FILENAME = "HER_virtual_data.csv"
 HER_TASK_NAME = "her_demo"
 HER_DEFAULT_MAX_EVALUATIONS = 40
 HER_SOURCE_PAPER = "Efficient and Principled Scientific Discovery through Bayesian Optimization: A Tutorial"
-HER_SOURCE_REPO = "https://github.com/zwyu-ai/BO-Tutorial-for-Sci"
-HER_DATASET_SOURCE_URL = f"{HER_SOURCE_REPO}/blob/main/examples/HER/{HER_DATASET_FILENAME}"
 HER_DESCRIPTION_DIR = TASK_DESCRIPTION_ROOT / HER_TASK_NAME
 HER_FEATURES = (
     "AcidRed871_0gL",
@@ -46,6 +43,7 @@ HER_FEATURES = (
     "SDS-1wt",
     "Sodiumsilicate-1wt",
 )
+HER_TARGET_COLUMN = "Target"
 
 
 @dataclass
@@ -54,7 +52,8 @@ class HerTaskConfig:
 
     max_evaluations: int | None = None
     seed: int = 0
-    dataset_path: Path | None = None
+    source_root: Path | None = None
+    cache_root: Path | None = None
     description_dir: Path | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -64,19 +63,39 @@ class HerTask(Task):
 
     def __init__(self, config: HerTaskConfig | None = None):
         self.config = config or HerTaskConfig()
-        self._dataset_path = resolve_her_dataset_path(self.config.dataset_path)
-        self._raw_data = pd.read_csv(self._dataset_path)
+        self._asset = stage_dataset_asset(
+            HER_DATASET_RELATIVE_PATH,
+            label="HER",
+            task_name=HER_TASK_NAME,
+            source_root=self.config.source_root,
+            cache_root=self.config.cache_root,
+        )
+        pd = require_pandas()
+        self._raw_data = pd.read_csv(self._asset.cache_path)
         self._validate_dataset_columns(self._raw_data)
-        self._target_max = float(self._raw_data["Target"].max())
-        self._training_data = self._raw_data.loc[:, [*HER_FEATURES, "Target"]].copy()
-        self._training_data["Target"] = self._target_max - self._training_data["Target"]
-        self._oracle = RandomForestRegressor(n_estimators=100, random_state=self.config.seed)
-        self._oracle.fit(self._training_data.loc[:, list(HER_FEATURES)], self._training_data["Target"])
 
-        description_dir = self.config.description_dir or HER_DESCRIPTION_DIR
+        self._target_max = float(self._raw_data[HER_TARGET_COLUMN].max())
+        self._training_data = self._raw_data.loc[:, [*HER_FEATURES, HER_TARGET_COLUMN]].copy()
+        self._training_data[HER_TARGET_COLUMN] = self._target_max - self._training_data[HER_TARGET_COLUMN]
+        self._oracle = fit_random_forest_regressor(
+            self._training_data.loc[:, list(HER_FEATURES)],
+            self._training_data[HER_TARGET_COLUMN],
+            random_state=self.config.seed,
+            n_estimators=100,
+        )
+
         search_space = SearchSpace(
             [FloatParam(name, low=0.0, high=5.0, default=2.5) for name in HER_FEATURES]
         )
+        description_dir = self.config.description_dir or HER_DESCRIPTION_DIR
+        self._dataset_summary = {
+            **self._asset.as_metadata(),
+            "row_count": int(len(self._training_data)),
+            "column_count": int(len(self._training_data.columns)),
+            "columns": list(self._raw_data.columns),
+            "target_stats": numeric_summary(self._raw_data[HER_TARGET_COLUMN]),
+            "regret_stats": numeric_summary(self._training_data[HER_TARGET_COLUMN]),
+        }
         self._spec = TaskSpec(
             name=HER_TASK_NAME,
             search_space=search_space,
@@ -84,11 +103,12 @@ class HerTask(Task):
             max_evaluations=self.config.max_evaluations or HER_DEFAULT_MAX_EVALUATIONS,
             description_ref=TaskDescriptionRef.from_directory(HER_TASK_NAME, description_dir),
             metadata={
-                "display_name": "HER Random-Forest Demo",
+                "display_name": "HER Demo",
                 "source_paper": HER_SOURCE_PAPER,
-                "source_repo": HER_SOURCE_REPO,
+                "source_repo": SOURCE_REPO_URL,
+                "source_ref": self._asset.source_ref,
                 "dataset_name": HER_DATASET_FILENAME,
-                "dataset_source_url": HER_DATASET_SOURCE_URL,
+                "dataset_cache_path": str(self._asset.cache_path),
                 "oracle_type": "RandomForestRegressor(n_estimators=100, random_state=<seed>)",
                 "dimension": len(HER_FEATURES),
                 "cma_initial_config": search_space.defaults(),
@@ -101,18 +121,15 @@ class HerTask(Task):
         return self._spec
 
     @property
-    def dataset_path(self) -> Path:
-        return self._dataset_path
+    def dataset_asset(self) -> DatasetAsset:
+        return self._asset
 
     @property
-    def dataset_frame(self) -> pd.DataFrame:
-        return self._training_data.copy()
-
-    @property
-    def raw_target_max(self) -> float:
-        return self._target_max
+    def dataset_summary(self) -> dict[str, Any]:
+        return dict(self._dataset_summary)
 
     def evaluate(self, suggestion: TrialSuggestion) -> EvaluationResult:
+        pd = require_pandas()
         start = time.perf_counter()
         config = self.spec.search_space.coerce_config(suggestion.config, use_defaults=False)
         features = pd.DataFrame([[config[name] for name in HER_FEATURES]], columns=HER_FEATURES)
@@ -122,7 +139,6 @@ class HerTask(Task):
         metrics = {
             "predicted_target": self._target_max - predicted_regret,
             "raw_target_max": self._target_max,
-            "dimension": float(len(HER_FEATURES)),
         }
         for name in HER_FEATURES:
             metrics[f"coord::{name}"] = float(config[name])
@@ -132,72 +148,43 @@ class HerTask(Task):
             objectives={"regret": predicted_regret},
             metrics=metrics,
             elapsed_seconds=elapsed,
-            metadata={
-                "dataset_name": HER_DATASET_FILENAME,
-                "oracle_type": "random_forest",
-            },
+            metadata=self._asset.as_metadata(),
         )
 
     def sanity_check(self):
         report = super().sanity_check()
-        if len(self.spec.search_space) != len(HER_FEATURES):
-            report.add_error(
-                "dimension_mismatch",
-                f"HER search space must expose {len(HER_FEATURES)} dimensions.",
-            )
-        if len(self._training_data) == 0:
-            report.add_error("empty_dataset", "HER dataset must contain at least one row.")
         missing = [name for name in HER_FEATURES if name not in self._training_data.columns]
         if missing:
             report.add_error("missing_feature_columns", f"HER dataset is missing feature columns: {missing!r}")
-        if "Target" not in self._training_data.columns:
+        if HER_TARGET_COLUMN not in self._training_data.columns:
             report.add_error("missing_target", "HER dataset must contain the `Target` column.")
+        if len(self._training_data) == 0:
+            report.add_error("empty_dataset", "HER dataset must contain at least one row.")
         if not math.isfinite(self._target_max):
             report.add_error("invalid_target_max", "HER dataset must have a finite maximum target value.")
         try:
-            prediction = self._oracle.predict(
-                pd.DataFrame([self.spec.search_space.defaults()], columns=HER_FEATURES)
-            )[0]
-            if not math.isfinite(float(prediction)):
+            default_result = self.evaluate(TrialSuggestion(config=self.spec.search_space.defaults()))
+            if not math.isfinite(float(default_result.objectives["regret"])):
                 report.add_error("non_finite_prediction", "HER oracle produced a non-finite prediction.")
-        except Exception as exc:  # pragma: no cover - defensive guard
+        except Exception as exc:  # pragma: no cover - defensive guard.
             report.add_error("oracle_predict_failed", f"HER oracle could not score the default config: {exc}")
-
-        report.metadata.update(
-            {
-                "dataset_path": str(self._dataset_path),
-                "row_count": int(len(self._training_data)),
-                "column_count": int(len(self._training_data.columns)),
-                "target_max": self._target_max,
-            }
-        )
+        report.metadata.update(self._dataset_summary)
         return report
 
     @staticmethod
-    def _validate_dataset_columns(frame: pd.DataFrame) -> None:
-        expected = [*HER_FEATURES, "Target"]
+    def _validate_dataset_columns(frame: Any) -> None:
+        expected = [*HER_FEATURES, HER_TARGET_COLUMN]
         missing = [name for name in expected if name not in frame.columns]
         if missing:
             raise ValueError(f"HER dataset is missing required columns: {missing!r}")
-
-
-def resolve_her_dataset_path(dataset_path: Path | str | None = None) -> Path:
-    if dataset_path is None:
-        dataset = HER_DATA_ROOT / HER_DATASET_FILENAME
-    else:
-        dataset = Path(dataset_path)
-    if not dataset.exists():
-        raise FileNotFoundError(
-            f"HER dataset file was not found at {dataset}. Expected bundled data copied from {HER_DATASET_SOURCE_URL}."
-        )
-    return dataset
 
 
 def create_her_task(
     *,
     max_evaluations: int | None = None,
     seed: int = 0,
-    dataset_path: Path | None = None,
+    source_root: Path | None = None,
+    cache_root: Path | None = None,
     description_dir: Path | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> HerTask:
@@ -205,7 +192,8 @@ def create_her_task(
         HerTaskConfig(
             max_evaluations=max_evaluations,
             seed=seed,
-            dataset_path=dataset_path,
+            source_root=source_root,
+            cache_root=cache_root,
             description_dir=description_dir,
             metadata=dict(metadata or {}),
         )
@@ -214,15 +202,13 @@ def create_her_task(
 
 __all__ = [
     "HER_DATASET_FILENAME",
-    "HER_DATASET_SOURCE_URL",
+    "HER_DATASET_RELATIVE_PATH",
     "HER_DEFAULT_MAX_EVALUATIONS",
     "HER_DESCRIPTION_DIR",
     "HER_FEATURES",
     "HER_SOURCE_PAPER",
-    "HER_SOURCE_REPO",
     "HER_TASK_NAME",
     "HerTask",
     "HerTaskConfig",
     "create_her_task",
-    "resolve_her_dataset_path",
 ]

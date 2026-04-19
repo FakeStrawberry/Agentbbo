@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from ..core import Task
-from .scientific import HER_TASK_NAME, create_her_task
-from .synthetic import BRANIN_DEFINITION, SPHERE_DEFINITION, SyntheticFunctionDefinition, SyntheticFunctionTask, SyntheticFunctionTaskConfig
-
+from .scientific import SCIENTIFIC_TASK_REGISTRY, create_scientific_task
+from .synthetic import (
+    BRANIN_DEFINITION,
+    SPHERE_DEFINITION,
+    SyntheticFunctionDefinition,
+    SyntheticFunctionTask,
+    SyntheticFunctionTaskConfig,
+)
 
 SYNTHETIC_PROBLEM_REGISTRY: dict[str, SyntheticFunctionDefinition] = {
     BRANIN_DEFINITION.key: BRANIN_DEFINITION,
     SPHERE_DEFINITION.key: SPHERE_DEFINITION,
-}
-SCIENTIFIC_TASK_REGISTRY: dict[str, str] = {
-    HER_TASK_NAME: "HER random-forest demo task",
 }
 TASK_REGISTRY: dict[str, str] = {
     **{name: "synthetic" for name in SYNTHETIC_PROBLEM_REGISTRY},
@@ -39,6 +41,7 @@ def create_demo_task(
     max_evaluations: int | None = None,
     seed: int = 0,
     noise_std: float = 0.0,
+    **kwargs,
 ) -> Task:
     if problem in SYNTHETIC_PROBLEM_REGISTRY:
         config = SyntheticFunctionTaskConfig(
@@ -48,8 +51,13 @@ def create_demo_task(
             noise_std=noise_std,
         )
         return SyntheticFunctionTask(config=config, definition=get_synthetic_problem(problem))
-    if problem == HER_TASK_NAME:
-        return create_her_task(max_evaluations=max_evaluations, seed=seed)
+    if problem in SCIENTIFIC_TASK_REGISTRY:
+        return create_scientific_task(
+            problem,
+            max_evaluations=max_evaluations,
+            seed=seed,
+            **kwargs,
+        )
     available = ", ".join(ALL_TASK_NAMES)
     raise ValueError(f"Unknown task `{problem}`. Available: {available}")
 
@@ -60,12 +68,14 @@ def create_task(
     max_evaluations: int | None = None,
     seed: int = 0,
     noise_std: float = 0.0,
+    **kwargs,
 ) -> Task:
     return create_demo_task(
         problem=name,
         max_evaluations=max_evaluations,
         seed=seed,
         noise_std=noise_std,
+        **kwargs,
     )
 
 
@@ -81,6 +91,7 @@ __all__ = [
     "SCIENTIFIC_TASK_REGISTRY",
     "SYNTHETIC_PROBLEM_REGISTRY",
     "TASK_FAMILIES",
+    "TASK_REGISTRY",
     "create_demo_task",
     "create_task",
     "get_scientific_task",
