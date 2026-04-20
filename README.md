@@ -62,19 +62,21 @@ Current family:
 ### `bbo/tasks/`
 
 Task implementations are also grouped by family.
-Current family:
+Current families:
 
 - `bbo/tasks/synthetic/`
   - `branin.py`
   - `sphere.py`
   - `base.py`
+- `bbo/tasks/bboplace/`
+  - `task.py`
 
 ### `bbo/task_descriptions/`
 
 Standardized task packaging for benchmark context.
 The current repository includes:
 
-- runnable benchmark descriptions for `branin_demo` and `sphere_demo`
+- runnable benchmark descriptions for `branin_demo`, `sphere_demo`, and `bboplace_bench`
 - a collaborator-facing packaging example
 - a reusable template
 - bilingual documentation companions
@@ -128,6 +130,21 @@ uv run python -m bbo.run \
   --max-evaluations 36 \
   --sigma-fraction 0.18 \
   --popsize 6
+```
+
+### BBOPlace HTTP task
+
+Start the published evaluator service first:
+
+```bash
+docker pull gaozhixuan/bboplace-bench
+docker run --rm -p 8080:8080 gaozhixuan/bboplace-bench
+```
+
+Then run a quick smoke test from this repo:
+
+```bash
+uv run python -m bbo.run --algorithm random_search --task bboplace_bench --max-evaluations 1
 ```
 
 ## Outputs
@@ -202,4 +219,5 @@ uv run python -m bbo.run --algorithm suite --task branin_demo --results-root art
 
 - `branin_demo`: two-dimensional synthetic benchmark for visualization and optimizer comparisons
 - `sphere_demo`: convex synthetic benchmark for smoke tests and replay/resume validation
+- `bboplace_bench`: HTTP-backed macro-placement benchmark adapter for BBOPlace-Bench MGO evaluation
 - `collaborator_problem_demo`: documentation-focused example showing how to package a realistic benchmark problem

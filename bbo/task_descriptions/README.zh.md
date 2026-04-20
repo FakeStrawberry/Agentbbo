@@ -55,6 +55,7 @@ bbo/task_descriptions/<task_name>/
 
 - `bbo/task_descriptions/branin_demo/`：README 和测试中实际使用的 synthetic-function demo
 - `bbo/task_descriptions/sphere_demo/`：轻量的 sanity-check 任务
+- `bbo/task_descriptions/bboplace_bench/`：通过 HTTP 接入 BBOPlace-Bench，并附带明确环境说明的任务文档
 - `bbo/task_descriptions/collaborator_problem_demo/`：更完整的协作者封装示例
 - `bbo/task_descriptions/_template/`：可直接复制的新任务模板
 
