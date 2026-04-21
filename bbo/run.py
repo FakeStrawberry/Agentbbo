@@ -36,6 +36,9 @@ def run_single_experiment(
     sigma_fraction: float = 0.18,
     popsize: int | None = None,
     noise_std: float = 0.0,
+    pfns_device: str | None = None,
+    pfns_pool_size: int = 256,
+    pfns_model: str = "hebo_plus",
 ) -> dict[str, Any]:
     task = create_task(task_name, max_evaluations=max_evaluations, seed=seed, noise_std=noise_std)
     _require_algorithm_support(task, algorithm_name)
@@ -45,6 +48,12 @@ def run_single_experiment(
     algorithm_kwargs: dict[str, Any] = {}
     if algorithm_name in {"pycma", "cma_es"}:
         algorithm_kwargs = {"sigma_fraction": sigma_fraction, "popsize": popsize}
+    elif algorithm_name == "pfns4bo":
+        algorithm_kwargs = {
+            "device": pfns_device,
+            "pool_size": pfns_pool_size,
+            "model_name": pfns_model,
+        }
     algorithm = create_algorithm(algorithm_name, **algorithm_kwargs)
 
     logger = JsonlMetricLogger(results_jsonl)
@@ -239,6 +248,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pycma-evaluations", type=int, default=36)
     parser.add_argument("--sigma-fraction", type=float, default=0.18)
     parser.add_argument("--popsize", type=int, default=6)
+    parser.add_argument("--pfns-device", default=None)
+    parser.add_argument("--pfns-pool-size", type=int, default=256)
+    parser.add_argument("--pfns-model", default="hebo_plus")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     return parser
@@ -269,6 +281,9 @@ def main(argv: list[str] | None = None) -> int:
             resume=args.resume,
             sigma_fraction=args.sigma_fraction,
             popsize=args.popsize,
+            pfns_device=args.pfns_device,
+            pfns_pool_size=args.pfns_pool_size,
+            pfns_model=args.pfns_model,
         )
 
     print(json.dumps(summary, indent=2, sort_keys=True))
