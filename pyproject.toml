@@ -38,3 +38,7 @@ bbo = ["task_descriptions/**/*.md"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+markers = [
+  "unit: fast, isolated unit tests",
+  "integration: slower tests that may use external services or data",
+]
