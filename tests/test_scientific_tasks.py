@@ -169,7 +169,7 @@ def test_scientific_random_search_smoke(
     assert summary["trial_count"] == 3
     assert summary["best_primary_objective"] is not None
     assert Path(summary["results_jsonl"]).exists()
-    assert len(summary["plot_paths"]) == 2
+    assert len(summary["plot_paths"]) == 4
     for plot_path in summary["plot_paths"]:
         path = Path(plot_path)
         assert path.exists()
@@ -190,7 +190,7 @@ def test_molecule_random_search_smoke(scientific_env: Path, tmp_path: Path) -> N
     assert summary["trial_count"] == 3
     assert summary["best_primary_objective"] is not None
     assert Path(summary["results_jsonl"]).exists()
-    assert len(summary["plot_paths"]) == 2
+    assert len(summary["plot_paths"]) == 4
     for plot_path in summary["plot_paths"]:
         path = Path(plot_path)
         assert path.exists()
@@ -211,7 +211,7 @@ def test_guacamol_qed_random_search_smoke(tmp_path: Path) -> None:
     assert summary["trial_count"] == 3
     assert summary["best_primary_objective"] is not None
     assert Path(summary["results_jsonl"]).exists()
-    assert len(summary["plot_paths"]) == 2
+    assert len(summary["plot_paths"]) == 4
     for plot_path in summary["plot_paths"]:
         path = Path(plot_path)
         assert path.exists()
