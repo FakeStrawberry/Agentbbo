@@ -42,6 +42,14 @@ bo-tutorial-full = [
   "pymoo==0.6.1.6",
   "torch>=1.9.0",
 ]
+pfns4bo = [
+  "botorch",
+  "gpytorch>=1.4.0",
+  "pfns4bo",
+  "scikit-learn>=0.22",
+  "scipy>=1.1",
+  "torch>=1.9.0",
+]
 interop = [
   "ConfigSpace>=1.2.0",
 ]

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from ..core.algo import Algorithm
-from .model_based import OptunaTpeAlgorithm
+from .model_based import OptunaTpeAlgorithm, Pfns4BoAlgorithm
 from .traditional import PyCmaAlgorithm, RandomSearchAlgorithm
 
 
@@ -46,6 +46,11 @@ ALGORITHM_REGISTRY: dict[str, AlgorithmSpec] = {
     "optuna_tpe": AlgorithmSpec(
         factory=OptunaTpeAlgorithm,
         description="Optuna TPE via the optional `optuna` package.",
+        family="model_based",
+    ),
+    "pfns4bo": AlgorithmSpec(
+        factory=Pfns4BoAlgorithm,
+        description="PFNs4BO with fixed continuous/pool routing for benchmark smoke tasks.",
         family="model_based",
     ),
 }

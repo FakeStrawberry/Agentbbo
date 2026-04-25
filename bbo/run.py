@@ -44,6 +44,9 @@ def run_single_experiment(
     surrogate_path: str | Path | None = None,
     knobs_json_path: str | Path | None = None,
     generate_plots: bool = True,
+    pfns_device: str | None = None,
+    pfns_pool_size: int = 256,
+    pfns_model: str = "hebo_plus",
 ) -> dict[str, Any]:
     task = create_task(
         task_name,
@@ -60,6 +63,12 @@ def run_single_experiment(
     algorithm_kwargs: dict[str, Any] = {}
     if algorithm_name in {"pycma", "cma_es"}:
         algorithm_kwargs = {"sigma_fraction": sigma_fraction, "popsize": popsize}
+    elif algorithm_name == "pfns4bo":
+        algorithm_kwargs = {
+            "device": pfns_device,
+            "pool_size": pfns_pool_size,
+            "model_name": pfns_model,
+        }
     algorithm = create_algorithm(algorithm_name, **algorithm_kwargs)
 
     logger = JsonlMetricLogger(results_jsonl)
@@ -358,6 +367,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Surrogate-only: override path to knobs_*.json (otherwise uses bundled assets).",
     )
+    parser.add_argument("--pfns-device", default=None)
+    parser.add_argument("--pfns-pool-size", type=int, default=256)
+    parser.add_argument("--pfns-model", default="hebo_plus")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     parser.add_argument(
@@ -398,6 +410,9 @@ def main(argv: list[str] | None = None) -> int:
             surrogate_path=args.surrogate_path,
             knobs_json_path=args.knobs_json_path,
             generate_plots=not args.no_plots,
+            pfns_device=args.pfns_device,
+            pfns_pool_size=args.pfns_pool_size,
+            pfns_model=args.pfns_model,
         )
 
     print(json.dumps(summary, indent=2, sort_keys=True))
