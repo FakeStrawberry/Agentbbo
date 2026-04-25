@@ -19,6 +19,7 @@ def test_run_single_experiment_writes_jsonl_and_summary(tmp_path: Path) -> None:
         max_evaluations=10,
         results_root=tmp_path,
         resume=False,
+        generate_plots=False,
     )
     results_jsonl = Path(summary["results_jsonl"])
     assert results_jsonl.exists()

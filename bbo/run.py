@@ -95,7 +95,6 @@ def run_single_experiment(
         "results_jsonl": str(results_jsonl),
         "trial_count": len(records),
     }
-    plot_paths: list[Path] = []
     if generate_plots:
         plot_paths = generate_visualizations(
             task=task,
@@ -103,7 +102,7 @@ def run_single_experiment(
             output_dir=run_dir / "plots",
             algorithm_label=algorithm_name,
         )
-    serializable_summary["plot_paths"] = [str(p) for p in plot_paths]
+        serializable_summary["plot_paths"] = [str(p) for p in plot_paths]
     (run_dir / "summary.json").write_text(json.dumps(serializable_summary, indent=2, sort_keys=True), encoding="utf-8")
     return serializable_summary
 
@@ -145,7 +144,6 @@ def run_demo_suite(
     )
 
     comparison_dir = _allocate_run_dir(results_root / task_name / "suite" / f"seed_{seed}", resume=resume)
-    comparison_plot_paths: list[str] = []
     if generate_plots:
         comparison_dir_plots = comparison_dir / "plots"
         generate_comparison_plot(
@@ -169,8 +167,9 @@ def run_demo_suite(
         "random_search": random_summary,
         "pycma": pycma_summary,
         "comparison_dir": str(comparison_dir),
-        "comparison_plot_paths": comparison_plot_paths,
     }
+    if generate_plots:
+        suite_summary["comparison_plot_paths"] = comparison_plot_paths
     (comparison_dir / "suite_summary.json").write_text(json.dumps(suite_summary, indent=2, sort_keys=True), encoding="utf-8")
     return suite_summary
 
